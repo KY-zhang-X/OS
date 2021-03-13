@@ -2,14 +2,14 @@
 
 CC 	:= gcc
 LD 	:= ld
-ASM 	:= nasm
+ASM := nasm
 GDB	:= gdb
 
 QEMU	:= qemu-system-i386
 TERMINAL:= gnome-terminal
 
 MKDIR 	:= mkdir -p
-RM	:= rm -f
+RM		:= rm -f
 COPY	:= cp
 
 OBJDIR	:= obj
@@ -54,7 +54,7 @@ $(addprefix $(OBJDIR)/, $(notdir $(patsubst %.c, %.o, $(1)))) : $(1)
 endef
 
 
-all: link update_image
+all: link image-update
 	
 $(foreach cfile, $(C_SOURCES), $(eval $(call create_target, $(cfile))))
 
@@ -68,33 +68,45 @@ link: $(S_OBJECTS) $(C_OBJECTS)
 	@echo 链接内核文件...
 	$(LD) $(LDFLAGS) $(S_OBJECTS) $(C_OBJECTS) -o $(BINDIR)/$(KNAME)
 
-.PHONY: clean
-clean:
-	$(RM) -r $(OBJDIR) $(KNAME)
 
 #TODO: Change this way
-.PHONY: update_image
-update_image:
+.PHONY: image-update image-mount image-umount
+image-update:
 	@if [ ! -d image ]; then $(MKDIR) image; fi
 	sudo mount floppy.img image
 	sudo $(COPY) $(BINDIR)/$(KNAME) image/os_kernel
 	sleep 1
 	sudo umount image
 
-.PHONY: mount_image
-mount_image:
+image-mount:
+	@if [ ! -d image ]; then $(MKDIR) image; fi
 	sudo mount floppy.img image
 
-.PHONY: umount_image
-umount_image:
+image-umount:
 	sudo umount image
 
-.PHONY: qemu
-qemu:
-	$(QEMU) -fda floppy.img -boot a
 
-.PHONY: debug
+QEMUOPTS := -fda floppy.img -boot a -serial mon:stdio -parallel null
+
+.PHONY: qemu qemu-nox debug debug-nox
+qemu:
+	$(QEMU) $(QEMUOPTS)
+
+qemu-nox:
+	$(QEMU) $(QEMUOPTS) -nographic
+
 debug:
-	$(QEMU) -S -s -fda floppy.img -boot a &
-	sleep 1
-	$(GDB) -x tools/gdbinit
+	$(QEMU) $(QEMUOPTS) -S -s 
+
+debug-nox:
+	$(QEMU) $(QEMUOPTS) -S -s -nographic
+
+
+.PHONY: gdb
+gdb:
+	$(GDB) -x scripts/gdbinit
+
+
+.PHONY: clean
+clean:
+	$(RM) -r $(OBJDIR) $(BINDIR)/$(KNAME)

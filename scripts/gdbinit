@@ -1,0 +1,2 @@
+file bin/os_kernel
+target remote :1234
